@@ -1,0 +1,308 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ConciliaFECC",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validaciones": {
+      "post": {
+        "summary": "Validate",
+        "operationId": "validate_api_v1_validaciones_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_validate_api_v1_validaciones_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Carga multipart inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Límite excedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Formato no admitido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Archivos o datos inválidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error del motor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Motor no disponible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_validate_api_v1_validaciones_post": {
+        "properties": {
+          "ura": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Ura",
+            "description": "Excel de URA."
+          },
+          "biblioteca": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Biblioteca",
+            "description": "Excel de Biblioteca."
+          },
+          "no_adeudos": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "No Adeudos",
+            "description": "Excel de Constancia de No Adeudos."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ura",
+          "biblioteca",
+          "no_adeudos"
+        ],
+        "title": "Body_validate_api_v1_validaciones_post"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "mensaje": {
+            "type": "string",
+            "title": "Mensaje"
+          },
+          "fuente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Source"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo",
+          "mensaje"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "PersonResult": {
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Referencia"
+          },
+          "aprobada": {
+            "type": "boolean",
+            "title": "Aprobada"
+          },
+          "faltantes": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Faltantes"
+          },
+          "duplicados": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Duplicados"
+          },
+          "inconsistencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inconsistencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referencia",
+          "aprobada",
+          "faltantes",
+          "duplicados",
+          "inconsistencias"
+        ],
+        "title": "PersonResult"
+      },
+      "Result": {
+        "properties": {
+          "registros_por_fuente": {
+            "$ref": "#/components/schemas/SourceCounts"
+          },
+          "aprobados": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Aprobados"
+          },
+          "faltantes_por_fuente": {
+            "$ref": "#/components/schemas/SourceCounts"
+          },
+          "personas": {
+            "items": {
+              "$ref": "#/components/schemas/PersonResult"
+            },
+            "type": "array",
+            "title": "Personas"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "registros_por_fuente",
+          "aprobados",
+          "faltantes_por_fuente",
+          "personas",
+          "advertencias"
+        ],
+        "title": "Result"
+      },
+      "Source": {
+        "type": "string",
+        "enum": [
+          "ura",
+          "biblioteca",
+          "no_adeudos"
+        ],
+        "title": "Source"
+      },
+      "SourceCounts": {
+        "properties": {
+          "ura": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Ura"
+          },
+          "biblioteca": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Biblioteca"
+          },
+          "no_adeudos": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "No Adeudos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ura",
+          "biblioteca",
+          "no_adeudos"
+        ],
+        "title": "SourceCounts"
+      }
+    }
+  }
+}

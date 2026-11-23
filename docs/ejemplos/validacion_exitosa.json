@@ -1,0 +1,12 @@
+{
+  "registros_por_fuente": {"ura": 4, "biblioteca": 4, "no_adeudos": 3},
+  "aprobados": 1,
+  "faltantes_por_fuente": {"ura": 0, "biblioteca": 1, "no_adeudos": 1},
+  "personas": [
+    {"referencia": "P001", "aprobada": true, "faltantes": [], "duplicados": [], "inconsistencias": []},
+    {"referencia": "P002", "aprobada": false, "faltantes": ["biblioteca", "no_adeudos"], "duplicados": [], "inconsistencias": []},
+    {"referencia": "P003", "aprobada": false, "faltantes": [], "duplicados": ["biblioteca"], "inconsistencias": []},
+    {"referencia": "P004", "aprobada": false, "faltantes": [], "duplicados": [], "inconsistencias": ["Coincidencia ambigua."]}
+  ],
+  "advertencias": ["Resultado sintético para pruebas de integración."]
+}

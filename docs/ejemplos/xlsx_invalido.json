@@ -1,0 +1,7 @@
+{
+  "error": {
+    "codigo": "xlsx_invalido",
+    "mensaje": "El archivo Excel es inválido.",
+    "fuente": "biblioteca"
+  }
+}

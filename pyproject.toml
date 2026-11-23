@@ -1,0 +1,19 @@
+[project]
+name = "conciliafecc"
+version = "0.1.0"
+description = "Backend de conciliación de registros de la FECC"
+requires-python = ">=3.11"
+dependencies = [
+	"defusedxml>=0.7.1,<1",
+	"fastapi>=0.121,<1",
+	"openpyxl>=3.1.5,<4",
+	"python-multipart>=0.0.22,<1",
+	"uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = ["httpx2>=2,<3", "pytest>=8,<10"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
