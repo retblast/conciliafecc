@@ -1,0 +1,211 @@
+:root {
+  --fondo: #ffffff;
+  --fondo-suave: #f5f5f5;
+  --texto: #1a1a1a;
+  --texto-suave: #4a4a4a;
+  --primario: #1f6feb;
+  --primario-hover: #155ab5;
+  --exito: #2e7d32;
+  --alerta: #c62828;
+  --amable: #f9a825;
+  --borde: #d0d0d0;
+  --sombra: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+header {
+  margin-bottom: 2rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 0 0 0.25rem;
+}
+
+header p {
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+section {
+  background: var(--fondo-suave);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--sombra);
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+p {
+  margin: 0 0 0.75rem;
+}
+
+.carga-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.campo-archivo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.campo-archivo label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.campo-archivo input[type="file"] {
+  padding: 0.5rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radius);
+  background: var(--fondo);
+}
+
+.archivo-seleccionado {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  margin-top: 0.25rem;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.6rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-conciliar {
+  background: var(--primario);
+  color: #ffffff;
+  width: 100%;
+}
+
+.btn-conciliar:enabled:hover:not(:disabled) {
+  background: var(--primario-hover);
+}
+
+.btn-conciliar:disabled {
+  background: #9db8d8;
+}
+
+.aviso {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.aviso.error {
+  background: #fdecea;
+  border: 1px solid var(--alerta);
+  color: var(--alerta);
+}
+
+.ayuda {
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  margin-top: 0.5rem;
+}
+
+.estado-carga {
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+  font-style: italic;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--borde);
+}
+
+th {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--texto-suave);
+  background: var(--fondo-suave);
+}
+
+tr.aprobada td {
+  background: #e8f5e9;
+}
+
+tr.observada td {
+  background: #fff3e0;
+}
+
+.tabla-resumen tr.total td {
+  font-weight: 700;
+  background: #eef2f7;
+}
+
+.advertencias {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #fff8e1;
+  border: 1px solid var(--amable);
+  border-radius: var(--radius);
+}
+
+.advertencias ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.advertencias li {
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
