@@ -654,3 +654,259 @@ Resumen de lo que se midió:
 | Regresión agregada con archivos reales | **Ejecutada localmente; solo conteos, §12.3** |
 | Commit / push / PR | `008ad8e` (motor + pruebas), `4c10454` (docs); rama pusheada al fork; **PR #3 abierto** |
 | Confirmación institucional de D1 y D3 | Pendiente |
+
+---
+
+## 20. Apéndice A — explicación narrativa completa para el equipo
+
+Este apéndice existe para que **nada de lo que se explicó durante la revisión
+quede solo en una conversación**. La primera parte del documento es de consulta
+rápida (tablas, reglas y diagramas); esta parte cuenta la misma historia con el
+detalle que hace falta para revisar el criterio, no solo el código.
+
+### 20.1 Por qué se rediseñó el motor
+
+El primer borrador se escribió cuando todavía no existían los Excel
+institucionales. Con esa incertidumbre, la decisión correcta era conservadora:
+sin columnas de estado explícitas, nadie se aprobaba solo por aparecer. Ese
+borrador sirvió para validar la interfaz, pero no para resolver el problema
+real.
+
+Al llegar los cuatro archivos a `C:\Users\Alfredo\Downloads`, la situación
+cambió:
+
+- ya se podía ver qué hojas tenían cabecera y cuáles no;
+- ya se podía identificar la columna de matrícula;
+- ya se podía medir cuántas matrículas había en cada fuente;
+- ya se podía comparar esas matrículas con la lista final sin imprimir datos
+  personales;
+- ya se podía distinguir entre «no coincide» y «está fuera del alcance de los
+  tres archivos».
+
+Por eso el borrador quedó superado. El nuevo diseño no parte de supuestos
+abstractos, sino de estructura observada. Aun así, mantiene una frontera sana:
+los hechos observados (hojas, columnas, conteos) son evidencia; las reglas de
+negocio que no puede probar un archivo (qué dependencia envía cada lista, si
+«aparecer» equivale a «estar aprobado») son decisiones ratificadas y quedan
+marcadas como supuestos pendientes de confirmación institucional.
+
+### 20.2 Cómo se llegó al mapa de fuentes
+
+El mapa no se dedujo automáticamente del contenido. De hecho, URA y Biblioteca
+tienen las mismas 63 matrículas, así que **por contenido son indistinguibles**.
+La decisión se apoya en tres señales:
+
+1. El archivo `REPOSITORIO_BACH_LICENC_APTOS...` se parece mucho a la columna
+   `REPOSITORIO` que aparece en la hoja principal de la lista final. En el
+   contexto de una facultad, el repositorio de trabajos suele estar asociado a
+   Biblioteca; el encargo no menciona una dependencia llamada «Repositorio».
+2. `BACHILLERES O LICENCIADOS APTOS...` describe literalmente la función de
+   registro académico: declarar qué bachilleres/licenciados están aptos para
+   colacionar. Encaja con URA.
+3. `Libro2.xlsx` no tiene un nombre que permita deducir su origen, pero es el
+   único archivo restante. Asignarlo a No Adeudos es la única forma de
+   completar las tres fuentes sin inventar una cuarta.
+
+Invertir URA y Biblioteca no habría cambiado ningún conteo, porque sus claves
+son idénticas. Pero sí habría dejado sin explicación la columna `REPOSITORIO` de
+la final. Por eso se descartó. El encargado ratificó esta recomendación.
+
+Un detalle operativo importante: el motor **no lleva los nombres de archivo en
+su código**. Los nombres se documentan para quien arma la petición (frontend o
+API), pero el motor recibe los bytes ya etiquetados en `Workbooks.ura`,
+`Workbooks.biblioteca` y `Workbooks.no_adeudos`. Si mañana cambia el nombre del
+Excel, no cambia el motor.
+
+### 20.3 Qué significa «aprobado» en este MVP
+
+Las tres listas de entrada no traen una columna `ESTADO`, `APROBADO` ni
+equivalente. Sus propios nombres dicen `APTOS`, y la lista final sí trae
+`NO ADEUDO` y `REPOSITORIO`. Con esa evidencia, la regla ratificada es:
+
+>Una persona queda aprobada si su matrícula aparece en URA, en Biblioteca y en
+>No Adeudos, y no tiene duplicados ni inconsistencias.
+
+Esto tiene tres capas de cuidado:
+
+1. **Está ratificado por el encargado para el MVP.** No es una ocurrencia del
+   motor ni un requisito que el código inventó por su cuenta.
+2. **Sigue siendo un supuesto institucional.** Las dependencias todavía no
+   confirmaron que sus listas vengan filtradas a aptos. Por eso el `Result`
+   siempre incluye la advertencia `ADVERTENCIA_APROBACION`.
+3. **Nunca se presenta como integración real.** Las cifras de aprobados son de
+   referencia para pruebas con los archivos disponibles, no un padrón oficial.
+
+Si en el futuro las dependencias envían una columna de estado, la regla puede
+cambiar sin tocar la forma del `Result`: se agrega una estrategia de aprobación
+y se retira la advertencia. El contrato no se mueve.
+
+### 20.4 Por qué la lista final no es una cuarta fuente
+
+La lista final es la verdad de referencia para las pruebas, no una entrada de
+producción. Meterla en la API habría exigido:
+
+- cambiar `Workbooks` para aceptar cuatro archivos;
+- cambiar el endpoint multipart;
+- cambiar OpenAPI;
+- cambiar el formulario de Renzo;
+- coordinar tres contratos distintos para un MVP que todavía no tiene motor
+  conectado.
+
+Además, la final contiene 95 matrículas, mientras la unión de las tres entradas
+tiene 79. Si la final fuera fuente, el motor estaría conciliando información que
+las dependencias no enviaron. Eso sería otra cosa: reproducir un padrón, no
+conciliar tres listas.
+
+Por eso se definió un arnés de regresión local:
+
+- `A` = aprobados por el motor;
+- `F` = matrículas de la hoja principal de la final con `NO ADEUDO` y
+  `REPOSITORIO = SI`;
+- cobertura = `|A ∩ F| / |A|`;
+- precisión = `|A ∩ F| / |F|`.
+
+Con los archivos disponibles: `A = 31`, `F = 63`, `A ∩ F = 18`. Las
+diferencias se clasifican en tres grupos: 13 aprobados por el motor sin ambas
+marcas en la hoja principal, 22 presentes en la final y en alguna entrada pero
+no en las tres, y 23 presentes en la final pero fuera de la unión de entradas.
+Ese criterio evita confundir «fuera de alcance» con «error del motor».
+
+### 20.5 Flujo completo, explicado paso a paso
+
+1. **Recepción.** La API ya validó tamaño, ZIP y XML antes de llamar al motor.
+   El motor recibe bytes, no rutas ni nombres de archivo.
+2. **Apertura.** `openpyxl` abre cada libro en modo `read_only`, con
+   `data_only=True` y sin enlaces externos. `data_only` significa que se lee el
+   valor calculado si existe; en las hojas elegidas no hay fórmulas, así que no
+   se mezclan valores derivados.
+3. **Selección de hoja.** Para URA y Biblioteca se busca `Worksheet`; para No
+   Adeudos, `Hoja1`. Si falta, `EngineInputError(source)`.
+4. **Resolución de columnas.** Con cabecera, se normalizan los textos de la
+   fila 2 y se busca `N° Matrícula`, `Apellidos` y `Nombres`. Sin cabecera, se
+   usan los índices 1, 2 y 3.
+5. **Lectura de filas.** Se ignoran filas completamente vacías. Si la fila tiene
+   contenido pero la matrícula está vacía, se cuenta como `sin_clave`. Si tiene
+   un valor que no cumple el patrón de matrícula, se cuenta como `invalidas`.
+   Ninguno de los dos casos rompe la petición: se omiten y se avisa.
+6. **Indexación.** Cada matrícula válida se guarda en un diccionario por fuente
+   junto con su nombre normalizado. Si la misma matrícula aparece otra vez en
+   esa fuente, se marca como duplicada y no se sobrescribe el primer registro.
+7. **Unión.** Se juntan las claves de las tres fuentes y se ordenan. El orden
+   solo sirve para asignar referencias estables dentro de la ejecución.
+8. **Clasificación.** Para cada clave se calculan faltantes, duplicados,
+   inconsistencias de nombre y, con eso, `aprobada`.
+9. **Traducción.** Los objetos internos se convierten a `PersonResult` y
+   `Result`. Las claves reales se descartan en este paso: solo viajan las
+   referencias opacas.
+10. **Totales.** `aprobados` y `faltantes_por_fuente` se cuentan desde la lista
+    de personas, no se acumulan por separado. Así los validadores de Pydantic
+    no pueden encontrar incoherencias.
+
+### 20.6 Qué pasa con una fila concreta
+
+| Situación de la fila | Acción | ¿Aprobable? |
+|---|---|---|
+| Fila vacía | Se ignora sin contar | No aplica |
+| Matrícula vacía pero con otros datos | Se omite y se cuenta en `sin_clave` | No |
+| Matrícula con letras o menos de 8 dígitos | Se omite y se cuenta en `invalidas` | No |
+| Matrícula válida, primera vez en la fuente | Se indexa | Depende de las otras fuentes |
+| Matrícula válida repetida en la misma fuente | Se marca duplicado | No |
+| Matrícula presente en las tres, mismo nombre | Se aprueba | Sí |
+| Matrícula presente en las tres, nombres distintos | Inconsistencia | No |
+
+La última fila merece énfasis: el nombre se compara solo para detectar un
+problema. Nunca se usa para decidir que dos matrículas distintas son la misma
+persona. Eso respeta la prohibición de coincidencias aproximadas del encargo.
+
+### 20.7 Por qué las referencias son opacas
+
+`docs/CONTRATO_API.md` lo pide explícitamente: «Usa una referencia opaca dentro
+del resultado». La matrícula es un identificador institucional y, al combinarlo
+con nombre y DNI de la final, forma parte de un conjunto de datos personales.
+El motor podría devolverlo, pero no debe.
+
+Por eso:
+
+- la matrícula existe solo en memoria durante `reconcile`;
+- `PersonResult.referencia` vale `P0001`, `P0002`, …;
+- `inconsistencias` y `advertencias` usan texto genérico, sin celdas;
+- el frontend podrá mostrar la fila y sus discrepancias sin exponer al usuario
+  final un identificador real.
+
+El orden de las referencias es por matrícula normalizada, pero ese orden no se
+explica en la respuesta: nadie puede reconstruir la matrícula desde `P0007`.
+
+### 20.8 Qué se verificó exactamente
+
+Hay dos niveles de verificación que no deben confundirse:
+
+**Nivel 1 — sintético.** Once pruebas generan Excel en memoria con la misma
+forma de los reales (fila de cabecera 2, hoja sin cabecera, columna 3 como
+matrícula en `Hoja1`), pero con datos inventados. Cubren aprobación,
+faltantes, duplicados, ceros a la izquierda, nombres discrepantes, hojas y
+cabeceras ausentes, errores atribuidos a la fuente y aislamiento del motor.
+Sumadas a las 22 pruebas previas: **33 pasadas**.
+
+**Nivel 2 — agregado real.** Se ejecutó el motor contra los tres Excel reales
+en la máquina local, sin guardar resultados y sin imprimir celdas. Solo se
+imprimieron conteos: `63 / 63 / 47` registros, `31` aprobados, `16 / 16 / 32`
+faltantes, `79` personas. Esos números coinciden con los cálculos del diseño.
+
+Ninguno de los dos niveles es integración real. La integración real empieza
+cuando retblast inyecta el motor en la API, Renzo consume la respuesta y las
+áreas confirman los supuestos.
+
+### 20.9 Qué se dejó fuera a propósito
+
+| No se hizo | Razón |
+|---|---|
+| Cuarta fuente HTTP | Cambiaría `Workbooks`, OpenAPI y el frontend |
+| DNI como clave | No está en las entradas; solo aparece en la final |
+| Coincidencia por nombre | El encargo la prohíbe para aprobar |
+| Hojas `TITULACION SEP 2026...` | 13 columnas, fórmulas y cabeceras ambiguas |
+| Excel generado desde el motor | `export_result` pertenece a retblast |
+| GET por ID | Requiere almacenamiento, vigencia y control de acceso |
+| Cambios en contrato/API | No son área del motor; se coordinan |
+| Datos reales en el repo | Regla de seguridad de `AGENTS.md` |
+| Merge del PR | Lo hace retblast |
+
+### 20.10 Qué sigue, en orden
+
+1. retblast revisa el PR #3 y confirma que `Engine.reconcile(Workbooks)` sigue
+   siendo suficiente.
+2. retblast inyecta `Conciliador` en `create_app(engine=...)`; el endpoint deja
+   de responder `503`.
+3. retblast acuerda el POST binario de descarga y Renzo arma la pantalla de
+   resultados y el botón de descarga.
+4. Las áreas confirman el mapa de fuentes y la regla de aprobación. Recién ahí
+   se puede hablar de integración real.
+5. El arnés de regresión contra la final se mantiene como herramienta local, no
+   como archivo versionado.
+6. Si el equipo decide que las hojas `TITULACION...` aportan datos originales
+   necesarios, se amplía la configuración con nuevas pruebas; no se activan
+   «para ver si sirven».
+7. retblast fusiona el PR. Yo no lo mergeo desde este hilo.
+
+---
+
+## 21. Apéndice B — trazabilidad de la explicación
+
+| Punto explicado | Sección del documento | Código o evidencia |
+|---|---|---|
+| Contrato `Workbooks` → `Result` | §1, §5.3 | `conciliafecc/contracts.py` |
+| Mapa de fuentes ratificado | §3.1, §4, §20.2 | `CONFIGURACION_PRODUCCION` |
+| Matrícula normalizada | §7.1, §20.3 | `normalizar_matricula()` |
+| Ceros a la izquierda | §7.1 | Prueba U-02 |
+| Sin coincidencias aproximadas | RN-10, U-05 | Prueba `test_no_hace_coincidencias_aproximadas` |
+| Duplicados | RN-03, §9 | Prueba U-03 |
+| Faltantes | RN-04, §8 | Prueba U-04 |
+| Nombres discrepantes | RN-05, §20.6 | Prueba U-06 |
+| Supuesto de aprobación | D3, RN-09, §20.3 | `ADVERTENCIA_APROBACION` |
+| Referencia opaca | §11, §20.7 | `PersonResult.referencia` |
+| Errores por fuente | §10 | `EngineInputError(source)` |
+| Final como verdad de prueba | D4, §12.2, §20.4 | Arnés local, no versionado |
+| Cobertura y precisión | §12.2 | 18/31 y 18/63 |
+| Suite y `ruff` | §12.3 | 33 pasadas |
+| Verificación real agregada | §12.3, §20.8 | Conteos sin PII |
+| Descarga binaria | D6, §15, §20.10 | Pendiente de retblast |
+| Fork y PR | §19, §20.10 | PR #3 |
