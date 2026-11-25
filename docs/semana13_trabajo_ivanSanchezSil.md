@@ -174,6 +174,10 @@ pruebas y la documentación. El encargado autorizó commits, push y PR:
 - Rama pusheada al fork `IvanSanchezSil/conciliafecc` (el repo oficial no da
   permisos de escritura a esta cuenta).
 - PR abierto: https://github.com/retblast/conciliafecc/pull/3
+- Comentario con el diseño y la verificación:
+  https://github.com/retblast/conciliafecc/pull/3#issuecomment-7165081549
+- Comentario con los puntos de coordinación:
+  https://github.com/retblast/conciliafecc/pull/3#issuecomment-7165081471
 
 **No se mergea desde este hilo**; retblast integra.
 
