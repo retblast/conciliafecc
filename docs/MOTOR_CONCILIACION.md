@@ -3,8 +3,9 @@
 **Fecha:** 2026-11-25  
 **Responsable:** Iván Sánchez Silva — integrante 3, motor de procesamiento  
 **Rama:** `feat/motor-conciliacion-inicial`  
-**Estado:** **diseño ratificado y implementación verificada** con datos sintéticos y conteos agregados reales; PR en preparación  
-**Base:** PR #1 (`Inicializar el backend y el contrato de ConciliaFECC`) mergeado en `main`
+**Estado:** **diseño ratificado e implementación verificada** con datos sintéticos y conteos agregados reales; PR #3 abierto para revisión  
+**Base:** PR #1 (`Inicializar el backend y el contrato de ConciliaFECC`) mergeado en `main`  
+**PR de este trabajo:** https://github.com/retblast/conciliafecc/pull/3
 
 > Este documento **planifica, decide y registra la verificación**. La
 > implementación quedó concentrada en `conciliafecc/motor.py` y sus pruebas;
@@ -651,5 +652,5 @@ Resumen de lo que se midió:
 | Implementación del diseño | **Lista en `conciliafecc/motor.py`** |
 | Pruebas sintéticas nuevas | **11 casos en `tests/test_motor.py`; 33 pasadas** |
 | Regresión agregada con archivos reales | **Ejecutada localmente; solo conteos, §12.3** |
-| Commit / push / PR | Autorizados por el encargado; PR en preparación |
+| Commit / push / PR | `008ad8e` (motor + pruebas), `4c10454` (docs); rama pusheada al fork; **PR #3 abierto** |
 | Confirmación institucional de D1 y D3 | Pendiente |

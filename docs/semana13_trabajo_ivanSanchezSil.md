@@ -167,9 +167,15 @@ personas`. Coincide con el diseño. No se guardó ningún resultado nominal.
 ## 5. Estado de los cambios
 
 La rama `feat/motor-conciliacion-inicial` contiene la implementación final, las
-pruebas y la documentación. El encargado autorizó commits, push y PR; se
-preparan commits atómicos y el PR para revisión. **No se mergea desde este
-hilo.**
+pruebas y la documentación. El encargado autorizó commits, push y PR:
+
+- `008ad8e` — `feat(motor): conciliar fuentes con estructura real`
+- `4c10454` — `docs: registrar diseño y verificacion del motor`
+- Rama pusheada al fork `IvanSanchezSil/conciliafecc` (el repo oficial no da
+  permisos de escritura a esta cuenta).
+- PR abierto: https://github.com/retblast/conciliafecc/pull/3
+
+**No se mergea desde este hilo**; retblast integra.
 
 ---
 
