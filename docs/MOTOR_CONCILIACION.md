@@ -910,3 +910,273 @@ cuando retblast inyecta el motor en la API, Renzo consume la respuesta y las
 | Verificación real agregada | §12.3, §20.8 | Conteos sin PII |
 | Descarga binaria | D6, §15, §20.10 | Pendiente de retblast |
 | Fork y PR | §19, §20.10 | PR #3 |
+
+---
+
+## 22. Apéndice C — explicación literal de 12 secciones
+
+Transcripción literal del mensaje con el que se explicó el diseño y la
+implementación del motor. No se resumió ni se reformuló ninguna frase; se
+conservan las tablas, las viñetas, los números y los dos diagramas Mermaid.
+
+### 1. punto de partida
+
+El PR #1 de retblast dejó claro el contrato:
+
+```python
+Engine.reconcile(Workbooks) -> Result
+```
+
+La API recibe tres archivos (ura, biblioteca, no_adeudos) y se los entrega al motor como bytes separados. El motor devuelve un Result con conteos y resultados por persona. Eso no cambió.
+
+Antes de ver los Excel reales, yo había hecho un borrador conservador: sin columnas de estado explícitas, nadie se aprobaba. Al aparecer los cuatro archivos reales, ese borrador quedó superado: ya había evidencia concreta de hojas, columnas y conteos, así que tocaba diseñar primero y recién después implementar.
+
+### 2. evidencia real que sustentó el diseño
+
+Inspeccioné los archivos solo de forma estructural: hojas, cabeceras, tipos y conteos. No imprimí matrículas ni nombres.
+
+| Archivo | Hoja usada | Cabecera | Clave | Registros |
+|---|---|---|---|---|
+| BACHILLERES O LICENCIADOS APTOS... | Worksheet | fila 2 | N° Matrícula col. 4 | 63 |
+| REPOSITORIO_BACH_LICENC_APTOS... | Worksheet | fila 2 | N° Matrícula col. 4 | 63 |
+| Libro2.xlsx | Hoja1 | sin cabecera | col. 3 | 47 |
+| COLACION ORD_FACEDU... (final) | varias | filas 5 y 7 | MATRÍCULA | 95 en total |
+
+Datos clave:
+
+- Los dos archivos de 63 tienen 63/63 matrículas idénticas y cero duplicados.
+- Libro2 tiene 47 matrículas únicas.
+- Intersección de las tres entradas: 31.
+- Unión de las tres entradas: 79.
+- La lista final tiene 95 matrículas entre tres hojas, pero solo 66 están en la unión de las entradas.
+- En la hoja principal de la final hay 64 con NO ADEUDO, 63 con REPOSITORIO = SI y 63 con ambas marcas.
+
+Ese último dato fue decisivo: no se puede exigir igualdad exacta entre el motor y la final, porque la final contiene personas que no están en los tres archivos recibidos.
+
+### 3. decisiones ratificadas
+
+Te las pregunté con opciones y recomendación; ratificaste todas.
+
+| Decisión | Resultado | Por qué |
+|---|---|---|
+| Mapa de fuentes | BACHILLERES... = URA; REPOSITORIO... = Biblioteca; Libro2 = No Adeudos | REPOSITORIO coincide con la columna de la final; BACHILLERES APTOS encaja con registro académico; Libro2 completa la tercera fuente |
+| Clave | Matrícula normalizada | Está en las tres entradas y en la final; el DNI solo está en la final |
+| Aprobación | Presencia en las tres, sin duplicados ni inconsistencias | Es la única regla que produce un MVP útil con estos archivos, pero queda como supuesto a confirmar |
+| Lista final | Verdad de prueba, no cuarta entrada | Evita cambiar el contrato HTTP de tres archivos |
+| Hojas | Worksheet y Hoja1 | Las hojas TITULACION SEP 2026... tienen fórmulas, 13 columnas y cabeceras ambiguas |
+| Duplicados | Se marcan y bloquean la aprobación | El contrato ya tiene el campo duplicados |
+| Comparación con final | Cobertura y precisión | No igualdad estricta, para no penalizar diferencias fuera de alcance |
+| Descarga | POST binario con tres archivos | Sin guardar resultados ni IDs; el exportador sigue siendo de retblast |
+
+Aclaración importante: la regla “aparecer en tres = aprobado” se activó porque tú la ratificaste para el MVP. Pero como las dependencias no enviaron una columna de estado, el motor emite siempre una advertencia_recordatorio de que falta la confirmación institucional. No la presentamos como requisito ya aceptado por URA/Biblioteca/No Adeudos.
+
+### 4. arquitectura
+
+Lo importante es la línea punteada: la lista final nunca entra a la API. Vive solo en el arnés de pruebas local.
+
+```mermaid
+flowchart LR
+    subgraph Equipo
+        F[Frontend · Renzo]
+        A[API HTTP · retblast]
+        M[Motor de conciliación · Iván]
+    end
+
+    F -->|multipart: ura, biblioteca, no_adeudos| A
+    A -->|Workbooks: bytes por fuente| M
+    M -->|Result o EngineInputError| A
+    A -->|JSON o Excel binario| F
+
+    URA[(URA<br/>BACHILLERES APTOS)] --> A
+    BIB[(Biblioteca<br/>REPOSITORIO APTOS)] --> A
+    NA[(No Adeudos<br/>Libro2)] --> A
+
+    FINAL[(Lista final<br/>COLACION ORD_FACEDU)]
+    FINAL -.->|solo arnés de pruebas, nunca HTTP| TEST[Regresión del motor]
+    TEST -.-> M
+```
+
+El motor:
+
+- no importa fastapi ni conciliafecc.api;
+- no conoce nombres de archivo: recibe los bytes ya etiquetados por Source;
+- no escribe archivos;
+- no decide la descarga;
+- no guarda resultados.
+
+### 5. configuración de lectura
+
+El motor tiene una configuración por fuente:
+
+| Source | Hoja | Fila de cabecera | Columna clave | Columnas de nombre |
+|---|---|---|---|---|
+| URA | Worksheet | 2 | N° Matrícula | Apellidos, Nombres |
+| LIBRARY | Worksheet | 2 | N° Matrícula | Apellidos, Nombres |
+| CLEARANCE | Hoja1 | ninguna | 3 | columnas 1 y 2 |
+
+Si la hoja no existe o la cabecera esperada no aparece, el motor lanza EngineInputError(source) y la API puede responder 422 con la fuente culpable.
+
+Las hojas TITULACION SEP 2026... quedan fuera del MVP. No porque sepamos que no sirven, sino porque tienen estructuras ambiguas y valores calculados; meterlas sin una decisión clara podría duplicar personas o aprobar con datos derivados.
+
+### 6. normalización de matrícula
+
+La clave interna es la matrícula normalizada:
+
+1. NFKC sobre el valor.
+2. Se quitan espacios.
+3. Si viene como número entero, se convierte con str(int(...)).
+4. Se acepta solo /^\d{8,}$/.
+5. Se conservan los ceros a la izquierda cuando vienen como texto.
+6. No se rellenan ni se recortan ceros.
+
+¿Por qué conservar ceros? En los archivos reales hay dos matrículas con ceros iniciales que aparecen como texto y coinciden igual en URA y Biblioteca. Recortarlos no mejoró la coincidencia y podría fusionar personas distintas en otro lote.
+
+Tampoco hay coincidencias aproximadas: 1000000001 y 1000000002 son personas distintas. Los nombres nunca se usan para decidir si dos registros son la misma persona; solo se usan para detectar una inconsistencia cuando la misma matrícula tiene nombres distintos.
+
+### 7. reglas de conciliación
+
+Las reglas implementadas son:
+
+ 1. RN-01 — Comparar solo por matrícula normalizada.
+ 2. RN-02 — Matrícula inválida: se omite la fila, se cuenta y se avisa.
+ 3. RN-03 — Matrícula repetida dentro de una fuente: se marca como duplicado y se bloquea la aprobación.
+ 4. RN-04 — Matrícula ausente en una fuente: se agrega esa fuente a faltantes.
+ 5. RN-05 — Nombres distintos para la misma matrícula: inconsistencia, pero nunca motivo de aprobación.
+ 6. RN-06 — Aprobada si está en las tres fuentes, sin duplicados y sin inconsistencias.
+ 7. RN-07 — aprobados y faltantes_por_fuente se derivan desde personas.
+ 8. RN-08 — Referencias opacas P0001, P0002, etc.
+ 9. RN-09 — Advertencia permanente sobre el supuesto de aprobación.
+10. RN-10 — Prohibidas las coincidencias aproximadas.
+
+La condición de aprobación es estricta:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Presente: aparece en ≥1 fuente
+    Presente --> Observada: falta en ≥1 fuente
+    Presente --> Observada: duplicado en alguna fuente
+    Presente --> Observada: nombres discrepantes entre fuentes
+    Presente --> Aprobada: presente en las 3<br/>sin duplicados<br/>sin inconsistencias
+    Observada --> [*]
+    Aprobada --> [*]
+```
+
+El validador de PersonResult del contrato ya prohíbe aprobar a alguien con discrepancias. El motor cumple esa regla por construcción.
+
+### 8. algoritmo interno
+
+El flujo es:
+
+1. Leer cada fuente con openpyxl en modo solo lectura.
+2. Seleccionar la hoja configurada.
+3. Resolver columnas por cabecera o por índice.
+4. Recorrer filas:
+- fila vacía → se ignora;
+- sin matrícula → se cuenta como omitida;
+- matrícula inválida → se cuenta como inválida;
+- matrícula repetida → se registra duplicado;
+- válida → se indexa junto con su nombre normalizado.
+5. Unir las claves de las tres fuentes.
+6. Para cada clave:
+- calcular faltantes;
+- calcular duplicados;
+- comparar nombres para detectar inconsistencias;
+- decidir aprobada;
+- asignar referencia opaca.
+7. Derivar totales.
+8. Armar advertencias.
+9. Devolver Result.
+
+Complejidad: lineal sobre las filas y O(U · 3) sobre la unión de matrículas. Con estos archivos, U = 79.
+
+### 9. qué implementé exactamente
+
+Código
+
+`conciliafecc/motor.py`
+
+- FuenteConfig: configuración por fuente.
+- CONFIGURACION_PRODUCCION: hojas, filas y columnas reales.
+- LecturaFuente: estructura interna agregada.
+- normalizar_matricula(): canonicalización de matrículas.
+- Conciliador.reconcile(): entrada Workbooks, salida Result.
+- Métodos privados para hoja, columnas, filas y advertencias.
+
+Pruebas
+
+`tests/test_motor.py` — 11 casos sintéticos:
+
+| Caso | Qué cubre |
+|---|---|
+| U-01 | Intersección de tres aprueba y totales derivados |
+| U-02 | Número vs texto con ceros: misma persona solo si los dígitos son idénticos |
+| U-03 | Duplicado en una fuente bloquea aprobación |
+| U-04 | Persona ausente de dos fuentes |
+| U-05 | Filas sin matrícula e identificadores inválidos |
+| U-06 | Nombres discrepantes como inconsistencia |
+| U-07 | Hoja ausente atribuida a la fuente |
+| U-08 | Cabecera ausente atribuida a la fuente |
+| U-09 | Sin coincidencias aproximadas |
+| U-10 | Configuración sin cabecera exige índices |
+| U-11 | Motor no importa API ni FastAPI |
+
+Documentación
+
+- docs/MOTOR_CONCILIACION.md: diseño de 19 secciones con diagramas Mermaid, tablas, reglas, criterios de aceptación, riesgos y plan de pruebas.
+- docs/semana13_trabajo_ivanSanchezSil.md: bitácora con decisiones, evidencias y estado.
+
+Verificación
+
+- ruff: limpio.
+- Suite: 33 pasadas (22 previas + 11 nuevas).
+- Con Excel reales, solo agregados: 63 / 63 / 47, 31 aprobados, 16 / 16 / 32 faltantes, 79 personas.
+
+### 10. qué NO implementé
+
+Esto queda fuera deliberadamente:
+
+- No cambié contracts.py, api.py, uploads.py, export.py, OpenAPI ni README.
+- No inyecté el motor en create_app(engine=...): es de retblast.
+- No agregué endpoint de descarga: es de retblast.
+- No usé la lista final como entrada HTTP.
+- No usé DNI como clave.
+- No hice coincidencias por nombre.
+- No leí las hojas TITULACION SEP 2026....
+- No guardé resultados ni agregué GET por ID.
+- No versioné Excel reales ni resultados nominales.
+- No mergeé el PR.
+
+### 11. qué sigue según el diseño
+
+El orden previsto es:
+
+1. Revisión del PR #3 por retblast.  
+El PR está abierto: https://github.com/retblast/conciliafecc/pull/3
+2. Inyección del motor en la API.  
+retblast debe pasar Conciliador() a create_app(engine=...). Con eso el endpoint deja de responder 503 y empieza a devolver Result.
+3. Endpoint de descarga binaria.  
+Según D6: un POST que recibe otra vez los tres archivos, ejecuta el motor y devuelve el XLSX de export_result. Sin almacenamiento ni IDs.
+4. Frontend de Renzo.  
+Mostrar:
+- resumen: registros, aprobados, observados;
+- tabla con referencia, faltantes, duplicados, inconsistencias;
+- botón de descarga;
+- errores comprensibles por fuente.
+5. Confirmación institucional.  
+Antes de decir “integración real”, las áreas deben confirmar:
+- que BACHILLERES... es URA, REPOSITORIO... es Biblioteca y Libro2 es No Adeudos;
+- que esas listas ya vienen filtradas a “aptos”, para que la regla de presencia en tres sea válida;
+- qué representa exactamente la columna REPOSITORIO de la final.
+6. Regresión con la lista final.  
+Ya se ejecutó localmente con conteos: cobertura 18/31 y precisión 18/63, con las diferencias clasificadas en tres grupos. Sigue siendo un arnés local, no un archivo versionado.
+7. Ampliaciones futuras.  
+Solo si el equipo lo decide:
+- leer TITULACION SEP 2026...;
+- incorporar DNI si las dependencias lo envían;
+- ajustar la regla de aprobación si aparecen estados explícitos.
+8. Merge.  
+Lo hace retblast. Yo no mergeo desde este hilo.
+
+### 12. resumen en una frase
+
+Diseñé un motor que convierte tres Excel administrativos en un Result válido para el contrato existente, usando matrícula normalizada como clave, presencia en tres como regla de aprobación ratificada con su advertencia de supuesto, referencias opacas para no exponer datos personales y la lista final solo como verdad de prueba; quedó implementado, con 33 pruebas verdes y PR #3 abierto para que retblast lo integre.
